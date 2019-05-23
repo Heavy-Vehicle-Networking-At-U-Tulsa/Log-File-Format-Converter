@@ -64,6 +64,7 @@ class App(object):
 					timeSeconds = struct.unpack("<L",record[0:4])[0]
 					timeMicrosecondsAndDLC = struct.unpack("<L",record[8:12])[0]
 					timeMicroseconds = timeMicrosecondsAndDLC & 0x00FFFFFF
+					DLC = (timeMicrosecondsAndDLC & 0xFF000000) >> 24
 					abs_time = timeSeconds + timeMicroseconds * 0.000001
 					ID = struct.unpack("<L",record[12:16])[0]
 					message_bytes = record[16:24]
@@ -72,7 +73,7 @@ class App(object):
 										.format(abs_time,ID,''.join(["{:02X}"
 											.format(b) for b in message_bytes])))
 					message_list.append(["{:0.6f}".format(abs_time),"can0","{:08X}"
-										.format(ID),]+["{:02X}"
+										.format(ID),"{}".format(DLC)]+["{:02X}"
 											.format(b) for b in message_bytes])
 
 		#Create data frame for display and save option
@@ -103,6 +104,7 @@ class App(object):
 					timeSeconds = struct.unpack("<L",record[1:5])[0]
 					timeMicrosecondsAndDLC = struct.unpack("<L",record[13:17])[0]
 					timeMicroseconds = timeMicrosecondsAndDLC & 0x00FFFFFF
+					DLC = (timeMicrosecondsAndDLC & 0xFF000000) >> 24
 					abs_time = timeSeconds + timeMicroseconds * 0.000001
 					ID = struct.unpack("<L",record[9:13])[0]
 					message_bytes = record[17:25]
@@ -111,13 +113,12 @@ class App(object):
 										.format(abs_time,channel,ID,''.join(["{:02X}"
 											.format(b) for b in message_bytes])))
 					message_list.append(["{:0.6f}".format(abs_time),"can{:0.0f}".format(channel),"{:08X}"
-										.format(ID),]+["{:02X}"
+										.format(ID),"{}".format(DLC)]+["{:02X}"
 											.format(b) for b in message_bytes])
-
 		#Create data frame for display and save option
 		pd.options.display.max_rows = len(message_list)
 		self.message_dataframe = pd.DataFrame(message_list, 
-									columns=["Abs. Time","Channel","ID",
+									columns=["Abs. Time","Channel","ID", "DLC",
 											"B0","B1","B2","B3","B4","B5","B6","B7"])
 		self.message_dataframe.index= np.arange(1,len(self.message_dataframe)+1) #Start index at 1
 		self.candump_dataframe = pd.DataFrame(candump_list)
