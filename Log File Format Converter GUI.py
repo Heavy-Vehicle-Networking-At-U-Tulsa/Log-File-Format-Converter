@@ -85,14 +85,12 @@ class FormatConverter(QMainWindow):
 		exit_action.triggered.connect(self.close)
 		file_menu.addAction(exit_action)
 
-		'''
 		#Data Menu Items
 		view_menu = menubar.addMenu('&View')
 		transport_show = QAction(QIcon(r'transport_truck.png'), '&Find Transport Messages', self)
 		transport_show.setStatusTip('Show all the transport layer messages in J1939')
 		transport_show.triggered.connect(self.show_transport)
 		view_menu.addAction(transport_show)
-		'''
 
 		#Help Menu Items
 		help_menu = menubar.addMenu('&Help')
@@ -108,10 +106,8 @@ class FormatConverter(QMainWindow):
 		self.main_toolbar.addAction(exit_action)
 		self.main_toolbar.addAction(about_action)
 
-		'''
 		self.data_toolbar = self.addToolBar("Data")
 		self.data_toolbar.addAction(transport_show)
-		'''
 
 		self.main_widget = QWidget(self)
 		#$self.graph_canvas = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
@@ -140,19 +136,69 @@ class FormatConverter(QMainWindow):
         #setup the layout to be displayed in the box
 		can_box.setLayout(can_box_layout)
 
-		
+		'''
+		self.transport_layer_table = QTableWidget()
+		transport_layer_box = QWidget()
+		self.transport_layer_dock = QDockWidget("Transport Layer Message Table", self)
+        #Create a layout for that box using the vertical
+		transport_layer_layout = QVBoxLayout()
+        #Add the widgets into the layout
+		transport_layer_layout.addWidget(self.transport_layer_table)
+		self.transport_layer_dock.setWidget(transport_layer_box)
+        #setup the layout to be displayed in the box
+		transport_layer_box.setLayout(transport_layer_layout)
+
+        #Setup the area for plotting SPNs
+		self.control_scroll_area = QScrollArea()
+		self.control_scroll_area.setWidgetResizable(True)
+        #Create the container widget
+		self.control_box = QWidget()
+        #put the container widget into the scroll area
+		self.control_scroll_area.setWidget(self.control_box)
+        #create a layout strategy for the container 
+		self.control_box_layout = QVBoxLayout()
+        #assign the layout strategy to the container
+		self.control_box.setLayout(self.control_box_layout)
+        #set the layout so labels are at the top
+		self.control_box_layout.setAlignment(Qt.AlignTop)
+        
+		label = QLabel("Select a CAN ID to see and plot the available Suspect Parameter Numbers.")
+		self.control_box_layout.addWidget(label)
+        
+        #Setup the area for plotting SPNs
+		self.info_scroll_area = QScrollArea()
+		self.info_scroll_area.setWidgetResizable(True)
+        #Create the container widget
+		self.info_box = QGroupBox("Suspect Parameter Number (SPN) Information")
+        #put the container widget into the scroll area
+		self.info_scroll_area.setWidget(self.info_box)
+        #create a layout strategy for the container 
+		self.info_box_layout = QVBoxLayout()
+        #assign the layout strategy to the container
+		self.info_box.setLayout(self.info_box_layout)
+        #set the layout so labels are at the top
+		self.info_box_layout.setAlignment(Qt.AlignTop)
+
+       
+        
+        #Ignore the box creation for now, since the graph box would just have 1 widget
+        #graph_box = QGroupBox("Plots")
+        '''
 
 		#Now we can set all the previously defined boxes into the main window
 		self.grid_layout = QGridLayout(self.main_widget)
 		self.grid_layout.addWidget(can_box,0,0,1,1) 
+		#self.grid_layout.addWidget(self.control_scroll_area,1,0)
+		#self.grid_layout.addWidget(self.info_scroll_area,1,1)
+		#self.grid_layout.addWidget(self.graph_canvas,1,2,2,1) 
 		self.grid_layout.addWidget(table_box,0,1)
+		#self.grid_layout.addWidget(self.transport_layer_dock,2,0,1,2)
 		self.grid_layout.setRowStretch(0, 3)
         
 		self.main_widget.setLayout(self.grid_layout)
 		self.setCentralWidget(self.main_widget)
         
 		self.setWindowTitle(program_title)
-		self.setWindowIcon(QIcon(r'transport_truck.png'))
 		self.show()
 
 		self.message_dataframe = None
@@ -189,10 +235,8 @@ class FormatConverter(QMainWindow):
 
 		if (msg.clickedButton() == pbutton1):
 			self.load_NMFTA_logger1()
-			self.show_transport()
 		elif (msg.clickedButton() == pbutton2):
 			self.load_logger2()
-			self.show_transport()
 
 	def load_NMFTA_logger1(self):
 		print('Loading NMFTA Logger 1 Data')
@@ -404,9 +448,10 @@ class FormatConverter(QMainWindow):
 											options = options)
 		if self.data_file_name:
 			print(self.data_file_name)
-			file = open(self.data_file_name,'w')
-			file.write(str(self.message_dataframe))
-			file.close()
+		file = open(self.data_file_name,'w')
+
+		file.write(str(self.message_dataframe))
+		file.close()
 
 	def save_candump(self):
 		print("Save Data as candump")
@@ -419,9 +464,10 @@ class FormatConverter(QMainWindow):
 											options = options)
 		if self.data_file_name:
 			print(self.data_file_name)
-			file = open(self.data_file_name,'w')
-			self.candump_dataframe.to_csv(file,index = False, header = False)
-			file.close()
+		file = open(self.data_file_name,'w')
+
+		self.candump_dataframe.to_csv(file,index = False, header = False)
+		file.close()
 
 	def show_transport(self):
 		loading_progress = QProgressDialog(self)
