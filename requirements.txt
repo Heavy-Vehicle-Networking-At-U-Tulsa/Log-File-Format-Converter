@@ -2,3 +2,4 @@ matplotlib==3.0.3
 numpy==1.16.4
 pandas==0.24.2
 PyQt5==5.12.1
+pretty_j1939==0.0.1
