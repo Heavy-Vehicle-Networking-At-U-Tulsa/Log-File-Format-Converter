@@ -504,19 +504,22 @@ class CANDecoderMainWindow(QMainWindow):
             self.info_box_layout.addWidget(QLabel("  Start Bit: {}, End Bit: {}".format(spn_start,spn_end)))
 
             values = []
+            valid_times = []
             df = self.CAN_groups.get_group(id_key)
-            times = df["Rel. Time"]
 
-            for theBytes in df["Bytes"]:
+            for theBytes, time in zip(df["Bytes"], df["Rel. Time"]):
                 try:
                     spn_value = pretty_j1939.parse.get_spn_value(theBytes, spn)
+                    if spn_value is None:
+                        continue
                     #print("SPN value: {}\n".format(spn_value))
                     values.append(spn_value)
+                    valid_times.append(time)
                 except ValueError:
                     pass
 
             #Plot the data
-            self.graph_canvas.plot_data(times,values,"SPN {}".format(spn))
+            self.graph_canvas.plot_data(valid_times, values, "SPN {}".format(spn))
             self.graph_canvas.title(os.path.basename(self.data_file_name))
             self.graph_canvas.xlabel("Time (sec)")
             self.graph_canvas.ylabel("{} ({})".format(name,units))
@@ -576,8 +579,12 @@ class CANDecoderMainWindow(QMainWindow):
                 for spn in pretty_j1939.parse.get_spn_list(PGN):
                     spn_name = pretty_j1939.parse.get_spn_name(spn)
                     self.spn_list.append(spn)
-                    self.spn_plot_checkbox[spn]= QCheckBox("Plot SPN {}: {}".format(spn,spn_name),self)
-                    self.spn_plot_checkbox[spn].stateChanged.connect(partial(self.plot_SPN,spn,id_key)) #We need to pass the SPN to the plotter
+                    self.spn_plot_checkbox[spn] = QCheckBox("Plot SPN {}: {}".format(spn, spn_name), self)
+                    if pretty_j1939.parse.is_spn_numerical_values(spn):
+                        # We need to pass the SPN to the plotter
+                        self.spn_plot_checkbox[spn].stateChanged.connect(partial(self.plot_SPN, spn, id_key))
+                    else:
+                        self.spn_plot_checkbox[spn].setDisabled(True)
             except KeyError:
                 pass
         for spn in sorted(self.spn_list):
