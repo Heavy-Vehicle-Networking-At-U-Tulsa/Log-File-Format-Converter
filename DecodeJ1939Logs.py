@@ -612,11 +612,12 @@ class CANDecoderMainWindow(QMainWindow):
         self.load_message_table(df)
 
         all_bams = {}
-        def process_bam_found(data_bytes, sa, pgn, timestamp):
+
+        def process_bam_found(data_bytes, sa, pgn):
             if sa in all_bams.keys():
-                all_bams[sa].append((timestamp, data_bytes, pgn))
+                all_bams[sa].append((data_bytes, pgn))
             else:
-                all_bams[sa] = [(timestamp, data_bytes, pgn)]
+                all_bams[sa] = [(data_bytes, pgn)]
 
         bam_processor = pretty_j1939.parse.get_bam_processor(process_bam_found)
 
@@ -633,7 +634,7 @@ class CANDecoderMainWindow(QMainWindow):
             message_bytes = line["Bytes"]
             timestamp = line["Abs. Time"]
 
-            bam_processor(message_bytes, message_id, sa, timestamp)
+            bam_processor(message_bytes, message_id)
 
         #Set the headers
         self.transport_layer_table_columns = ["PGN","Acronym","SA","Data"]
@@ -643,13 +644,13 @@ class CANDecoderMainWindow(QMainWindow):
         self.transport_layer_table.clearContents()
 
         display = {}
-        for sa,timestamp_pgn_and_data_list in sorted(all_bams.items()):
+        for sa, pgn_and_data_list in sorted(all_bams.items()):
             formatted_sa = "{:3d}".format(sa)
-            for timestamp_pgn_and_data in timestamp_pgn_and_data_list:
-                formatted_pgn = "{:8d}".format(timestamp_pgn_and_data[2])
-                pgn_acronym = pretty_j1939.parse.get_pgn_acronym(timestamp_pgn_and_data[2])
+            for data_and_pgn in pgn_and_data_list:
+                formatted_pgn = "{:8d}".format(data_and_pgn[1])
+                pgn_acronym = pretty_j1939.parse.get_pgn_acronym(data_and_pgn[1])
 
-                data = timestamp_pgn_and_data[1].decode("ascii","backslashreplace")
+                data = data_and_pgn[0].decode("ascii","backslashreplace")
 
                 display[formatted_pgn + formatted_sa]=[formatted_pgn, pgn_acronym, formatted_sa, data]
 
@@ -658,9 +659,9 @@ class CANDecoderMainWindow(QMainWindow):
                 row = self.transport_layer_table.rowCount()
                 self.transport_layer_table.insertRow(row)
                 for col in range(self.transport_layer_table.columnCount()):
-                    timestamp_pgn_and_data = QTableWidgetItem(row_values[col])
-                    timestamp_pgn_and_data.setFlags(timestamp_pgn_and_data.flags() & ~Qt.ItemIsEditable)
-                    self.transport_layer_table.setItem(row,col,timestamp_pgn_and_data)
+                    data_and_pgn = QTableWidgetItem(row_values[col])
+                    data_and_pgn.setFlags(data_and_pgn.flags() & ~Qt.ItemIsEditable)
+                    self.transport_layer_table.setItem(row,col,data_and_pgn)
 
         self.transport_layer_table.resizeColumnsToContents()
         self.transport_layer_table.setSortingEnabled(True)
