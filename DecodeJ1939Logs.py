@@ -491,12 +491,12 @@ class CANDecoderMainWindow(QMainWindow):
         self.can_id_table.resizeColumnsToContents()
         self.can_id_table.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
 
-    def plot_SPN(self,spn,id_key):
+    def plot_SPN(self, spn, pgn, id_key):
         if self.spn_plot_checkbox[spn].isChecked():
             callback = self.statusBar().showMessage
 
             name, offset, scale, spn_end, spn_length, spn_start, units = \
-                pretty_j1939.parse.lookup_all_spn_params(callback, spn)
+                pretty_j1939.parse.lookup_all_spn_params(callback, spn, pgn)
 
             self.info_box_layout.addWidget(QLabel("SPN {}: {}".format(spn,name)))
             self.info_box_layout.addWidget(QLabel("  Resolution: {}, Units: {}".format(scale,units)))
@@ -509,7 +509,7 @@ class CANDecoderMainWindow(QMainWindow):
 
             for theBytes, time in zip(df["Bytes"], df["Rel. Time"]):
                 try:
-                    spn_value = pretty_j1939.parse.get_spn_value(theBytes, spn)
+                    spn_value = pretty_j1939.parse.get_spn_value(theBytes, spn, pgn)
                     if spn_value is None:
                         continue
                     #print("SPN value: {}\n".format(spn_value))
@@ -582,7 +582,7 @@ class CANDecoderMainWindow(QMainWindow):
                     self.spn_plot_checkbox[spn] = QCheckBox("Plot SPN {}: {}".format(spn, spn_name), self)
                     if pretty_j1939.parse.is_spn_numerical_values(spn):
                         # We need to pass the SPN to the plotter
-                        self.spn_plot_checkbox[spn].stateChanged.connect(partial(self.plot_SPN, spn, id_key))
+                        self.spn_plot_checkbox[spn].stateChanged.connect(partial(self.plot_SPN, spn, PGN, id_key))
                     else:
                         self.spn_plot_checkbox[spn].setDisabled(True)
             except KeyError:
