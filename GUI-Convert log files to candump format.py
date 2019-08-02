@@ -79,7 +79,7 @@ class App(object):
 		#Create data frame for display and save option
 		pd.options.display.max_rows = len(message_list)
 		self.message_dataframe = pd.DataFrame(message_list, 
-									columns=["Abs. Time","Channel","ID",
+									columns=["Abs. Time","Channel","ID", "DLC",
 											"B0","B1","B2","B3","B4","B5","B6","B7"])
 		self.message_dataframe.index= np.arange(1,len(self.message_dataframe)+1) #Start index at 1
 		self.candump_dataframe = pd.DataFrame(candump_list)
