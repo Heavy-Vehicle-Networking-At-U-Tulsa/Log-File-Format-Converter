@@ -20,6 +20,7 @@ import numpy as np
 
 import sys
 import struct
+import bitstring
 
 from PyQt5.QtWidgets import (QMainWindow,
                              QWidget,
@@ -491,12 +492,12 @@ class CANDecoderMainWindow(QMainWindow):
         self.can_id_table.resizeColumnsToContents()
         self.can_id_table.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
 
-    def plot_SPN(self,spn,id_key):
+    def plot_SPN(self, spn, pgn, id_key):
         if self.spn_plot_checkbox[spn].isChecked():
             callback = self.statusBar().showMessage
 
             name, offset, scale, spn_end, spn_length, spn_start, units = \
-                pretty_j1939.parse.lookup_all_spn_params(callback, spn)
+                pretty_j1939.parse.lookup_all_spn_params(callback, spn, pgn)
 
             self.info_box_layout.addWidget(QLabel("SPN {}: {}".format(spn,name)))
             self.info_box_layout.addWidget(QLabel("  Resolution: {}, Units: {}".format(scale,units)))
@@ -504,19 +505,22 @@ class CANDecoderMainWindow(QMainWindow):
             self.info_box_layout.addWidget(QLabel("  Start Bit: {}, End Bit: {}".format(spn_start,spn_end)))
 
             values = []
+            valid_times = []
             df = self.CAN_groups.get_group(id_key)
-            times = df["Rel. Time"]
 
-            for theBytes in df["Bytes"]:
+            for theBytes, time in zip(df["Bytes"], df["Rel. Time"]):
                 try:
-                    spn_value = pretty_j1939.parse.get_spn_value(theBytes, spn)
+                    spn_value = pretty_j1939.parse.get_spn_value(bitstring.Bits(bytes=theBytes), spn, pgn)
+                    if spn_value is None:
+                        continue
                     #print("SPN value: {}\n".format(spn_value))
                     values.append(spn_value)
+                    valid_times.append(time)
                 except ValueError:
                     pass
 
             #Plot the data
-            self.graph_canvas.plot_data(times,values,"SPN {}".format(spn))
+            self.graph_canvas.plot_data(valid_times, values, "SPN {}".format(spn))
             self.graph_canvas.title(os.path.basename(self.data_file_name))
             self.graph_canvas.xlabel("Time (sec)")
             self.graph_canvas.ylabel("{} ({})".format(name,units))
@@ -573,11 +577,16 @@ class CANDecoderMainWindow(QMainWindow):
             (PGN,DA,SA) = pretty_j1939.parse.parse_j1939_id(id_key)
             #selected_data_frames.append(self.CAN_groups.get_group(id_key))
             try:
-                for spn in pretty_j1939.parse.get_spn_list(PGN):
+                pgn_object = pretty_j1939.parse.get_pgn_object(PGN)
+                for spn in pgn_object['SPNs']:
                     spn_name = pretty_j1939.parse.get_spn_name(spn)
                     self.spn_list.append(spn)
-                    self.spn_plot_checkbox[spn]= QCheckBox("Plot SPN {}: {}".format(spn,spn_name),self)
-                    self.spn_plot_checkbox[spn].stateChanged.connect(partial(self.plot_SPN,spn,id_key)) #We need to pass the SPN to the plotter
+                    self.spn_plot_checkbox[spn] = QCheckBox("Plot SPN {}: {}".format(spn, spn_name), self)
+                    if pretty_j1939.parse.is_spn_numerical_values(pretty_j1939.parse.get_spn_object(spn)['Units']):
+                        # We need to pass the SPN to the plotter
+                        self.spn_plot_checkbox[spn].stateChanged.connect(partial(self.plot_SPN, spn, PGN, id_key))
+                    else:
+                        self.spn_plot_checkbox[spn].setDisabled(True)
             except KeyError:
                 pass
         for spn in sorted(self.spn_list):
@@ -605,11 +614,12 @@ class CANDecoderMainWindow(QMainWindow):
         self.load_message_table(df)
 
         all_bams = {}
-        def process_bam_found(data_bytes, sa, pgn, timestamp):
+
+        def process_bam_found(data_bytes, sa, pgn):
             if sa in all_bams.keys():
-                all_bams[sa].append((timestamp, data_bytes, pgn))
+                all_bams[sa].append((data_bytes, pgn))
             else:
-                all_bams[sa] = [(timestamp, data_bytes, pgn)]
+                all_bams[sa] = [(data_bytes, pgn)]
 
         bam_processor = pretty_j1939.parse.get_bam_processor(process_bam_found)
 
@@ -626,7 +636,7 @@ class CANDecoderMainWindow(QMainWindow):
             message_bytes = line["Bytes"]
             timestamp = line["Abs. Time"]
 
-            bam_processor(message_bytes, message_id, sa, timestamp)
+            bam_processor(message_bytes, message_id)
 
         #Set the headers
         self.transport_layer_table_columns = ["PGN","Acronym","SA","Data"]
@@ -636,13 +646,13 @@ class CANDecoderMainWindow(QMainWindow):
         self.transport_layer_table.clearContents()
 
         display = {}
-        for sa,timestamp_pgn_and_data_list in sorted(all_bams.items()):
+        for sa, pgn_and_data_list in sorted(all_bams.items()):
             formatted_sa = "{:3d}".format(sa)
-            for timestamp_pgn_and_data in timestamp_pgn_and_data_list:
-                formatted_pgn = "{:8d}".format(timestamp_pgn_and_data[2])
-                pgn_acronym = pretty_j1939.parse.get_pgn_acronym(timestamp_pgn_and_data[2])
+            for data_and_pgn in pgn_and_data_list:
+                formatted_pgn = "{:8d}".format(data_and_pgn[1])
+                pgn_acronym = pretty_j1939.parse.get_pgn_acronym(data_and_pgn[1])
 
-                data = timestamp_pgn_and_data[1].decode("ascii","backslashreplace")
+                data = data_and_pgn[0].decode("ascii","backslashreplace")
 
                 display[formatted_pgn + formatted_sa]=[formatted_pgn, pgn_acronym, formatted_sa, data]
 
@@ -651,9 +661,9 @@ class CANDecoderMainWindow(QMainWindow):
                 row = self.transport_layer_table.rowCount()
                 self.transport_layer_table.insertRow(row)
                 for col in range(self.transport_layer_table.columnCount()):
-                    timestamp_pgn_and_data = QTableWidgetItem(row_values[col])
-                    timestamp_pgn_and_data.setFlags(timestamp_pgn_and_data.flags() & ~Qt.ItemIsEditable)
-                    self.transport_layer_table.setItem(row,col,timestamp_pgn_and_data)
+                    data_and_pgn = QTableWidgetItem(row_values[col])
+                    data_and_pgn.setFlags(data_and_pgn.flags() & ~Qt.ItemIsEditable)
+                    self.transport_layer_table.setItem(row,col,data_and_pgn)
 
         self.transport_layer_table.resizeColumnsToContents()
         self.transport_layer_table.setSortingEnabled(True)
