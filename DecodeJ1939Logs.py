@@ -577,7 +577,8 @@ class CANDecoderMainWindow(QMainWindow):
             (PGN,DA,SA) = pretty_j1939.parse.parse_j1939_id(id_key)
             #selected_data_frames.append(self.CAN_groups.get_group(id_key))
             try:
-                for spn in pretty_j1939.parse.get_spn_list(PGN):
+                pgn_object = pretty_j1939.parse.get_pgn_object(PGN)
+                for spn in pgn_object['SPNs']:
                     spn_name = pretty_j1939.parse.get_spn_name(spn)
                     self.spn_list.append(spn)
                     self.spn_plot_checkbox[spn] = QCheckBox("Plot SPN {}: {}".format(spn, spn_name), self)
