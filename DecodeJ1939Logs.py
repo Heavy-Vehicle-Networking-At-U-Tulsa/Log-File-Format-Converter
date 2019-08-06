@@ -20,6 +20,7 @@ import numpy as np
 
 import sys
 import struct
+import bitstring
 
 from PyQt5.QtWidgets import (QMainWindow,
                              QWidget,
@@ -509,7 +510,7 @@ class CANDecoderMainWindow(QMainWindow):
 
             for theBytes, time in zip(df["Bytes"], df["Rel. Time"]):
                 try:
-                    spn_value = pretty_j1939.parse.get_spn_value(theBytes, spn, pgn)
+                    spn_value = pretty_j1939.parse.get_spn_value(bitstring.Bits(bytes=theBytes), spn, pgn)
                     if spn_value is None:
                         continue
                     #print("SPN value: {}\n".format(spn_value))
@@ -580,7 +581,7 @@ class CANDecoderMainWindow(QMainWindow):
                     spn_name = pretty_j1939.parse.get_spn_name(spn)
                     self.spn_list.append(spn)
                     self.spn_plot_checkbox[spn] = QCheckBox("Plot SPN {}: {}".format(spn, spn_name), self)
-                    if pretty_j1939.parse.is_spn_numerical_values(spn):
+                    if pretty_j1939.parse.is_spn_numerical_values(pretty_j1939.parse.get_spn_object(spn)['Units']):
                         # We need to pass the SPN to the plotter
                         self.spn_plot_checkbox[spn].stateChanged.connect(partial(self.plot_SPN, spn, PGN, id_key))
                     else:
