@@ -17,6 +17,7 @@ import os
 import struct
 import pandas as pd
 import numpy as np
+import binascii
 
 from PyQt5.QtWidgets import (QMainWindow,
 							 QWidget,
@@ -175,7 +176,18 @@ class FormatConverter(QMainWindow):
 		#msg.setWindowModality(Qt.ApplicationModal)
 		msg.exec_()
 
+	def check_crc32(self):
+		msg = QMessageBox()
+		msg.setWindowTitle("Validation")
+		if self.crc32_check == True:
+			msg.setText("The data PASSED CRC check!")
+			msg.setIcon(QMessageBox.Information)
+		else:
+			msg.setText("The data FAILED CRC check!")
+			msg.setIcon(QMessageBox.Critical)
 
+		msg.setStandardButtons(QMessageBox.Ok)
+		msg.exec_()
 
 	def load_file(self):
 		msg = QMessageBox()
@@ -183,7 +195,7 @@ class FormatConverter(QMainWindow):
 		msg.setWindowTitle("Open")
 		msg.setIcon(QMessageBox.Question)
 		pbutton1 = msg.addButton(str('NMFTA Logger 1'),QMessageBox.ActionRole)
-		pbutton2 = msg.addButton(str('CAN Logger 2'),QMessageBox.ActionRole)
+		pbutton2 = msg.addButton(str('CAN Logger 2/3'),QMessageBox.ActionRole)
 		msg.setStandardButtons(QMessageBox.Close)
 		msg.exec_()
 
@@ -193,6 +205,7 @@ class FormatConverter(QMainWindow):
 		elif (msg.clickedButton() == pbutton2):
 			self.load_logger2()
 			self.show_transport()
+			self.check_crc32()
 
 	def load_NMFTA_logger1(self):
 		print('Loading NMFTA Logger 1 Data')
@@ -296,6 +309,7 @@ class FormatConverter(QMainWindow):
 
 	def load_logger2_binary(self, append_data_frame = False):
 		#This may be a long process, so let's show a progress bar:
+		self.crc32_check = True
 		fileLocation = 0
 		startTime = None
 		file_size = os.path.getsize(self.data_file_name)
@@ -313,6 +327,10 @@ class FormatConverter(QMainWindow):
 		with open(self.data_file_name,'rb') as binFile:
 			while(fileLocation<file_size):
 				block =binFile.read(512) #read every 512 bytes
+				crc32 = struct.unpack("<L",block[508:512])[0]
+				if crc32 !=(binascii.crc32(block[0:508])):
+					self.crc32_check = False
+
 				fileLocation+=512
 				binFile.seek(fileLocation)
 				loading_progress.setValue(fileLocation)
@@ -419,7 +437,7 @@ class FormatConverter(QMainWindow):
 											options = options)
 		if self.data_file_name:
 			print(self.data_file_name)
-			file = open(self.data_file_name,'w')
+			file = open(self.data_file_name,'w',newline='')
 			self.candump_dataframe.to_csv(file,index = False, header = False)
 			file.close()
 
